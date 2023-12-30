@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screaming Meter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:ital,wght@1,600;1,700;1,800;1,900&family=Open+Sans:wght@700&display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.24/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <style>
+    body {
+      font-family: "Open Sans";
+
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+
+      background: url("bg.png") no-repeat;
+      background-size: cover;
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .title {
+      font-weight: 700;
+      font-size: 4rem;
+      color: black;
+      margin-bottom: 5rem;
+    }
+
+    #meter {
+      height: 400px;
+      width: 150px;
+      background-color: lightgray;
+      position: relative;
+      margin: 20px auto;
+    }
+
+    #meterBar {
+      width: 150px;
+      background-color: red;
+      position: absolute;
+      bottom: 0;
+      transition: height 0.1s;
+    }
+
+    .lowSens {
+      max-height: 250px;
+    }
+
+    .confetti {
+      position: fixed;
+      width: 25px;
+      height: 25px;
+      background-color: #ff59ac;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      animation: confetti-fall linear infinite;
+    }
+
+    @keyframes confetti-fall {
+      0% {
+        transform: translateY(-100vh) rotate(0deg);
+      }
+
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+      }
+    }
+
+    .modal-box {
+      background-color: transparent;
+      width: 800px;
+      max-width: 800px;
+    }
+
+    .winner-text {
+      font-size: 5rem;
+      font-weight: 700;
+      color: rgb(255, 255, 255);
+      text-align: center;
+    }
+
+    video {
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+    }
+
+    iframe {
+      width: 100vw;
+      height: 100vh;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div id="wrapper" data-win="true">
+    <h1 class="title">Scream-🤯-Meter</h1>
+    <div class="container">
+    </div>
+    <div id="meter">
+      <div id="meterBar" class="lowSens"></div>
+    </div>
+  </div>
+
+  <dialog id="winner" class="modal">
+    <div class="modal-box">
+      <h3 class="winner-text">LET THE SHOW😎 BEGIN!!</h3>
+    </div>
+  </dialog>
+
+  <script>
+    const launchConfetti = () => {
+      for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.classList.add('confetti');
+        confetti.style.left = `${Math.random() * 100}vw`;
+        confetti.style.animationDuration = `${Math.random() * 3 + 2}s`;
+        confetti.style.opacity = `${Math.random()}`;
+        confetti.style.fontSize = `${Math.random() * 3 + 2}rem`;
+        document.body.appendChild(confetti);
+
+        setTimeout(() => {
+          confetti.remove();
+        }, 5000);
+      }
+    };
+
+    const triggerWin = async () => {
+      launchConfetti();
+      document.getElementById('wrapper').dataset.win = "false";
+      setTimeout(() => {
+        document.getElementsByTagName('body')[0].style.background = "black";
+        document.getElementById('wrapper').innerHTML = "";
+        document.getElementById('winner').showModal();
+      }, 1000);
+      setTimeout(() => {
+        document.getElementById('winner').close();
+      }, 5000);
+      setTimeout(() => {
+        document.getElementById("wrapper").innerHTML = 
+        '<iframe src="https://www.youtube.com/embed/tcTDNEKPCP8?si=2zTdUxc0Hcd-77al" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>';
+      }, 5000);
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      let audioContext = null;
+      let analyser = null;
+      const sensitivity = 10; // Adjust this sensitivity factor
+
+      const initAudio = async () => {
+        try {
+          meterBar = document.getElementById('meterBar');
+
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioContext.createAnalyser();
+          const microphone = audioContext.createMediaStreamSource(stream);
+          microphone.connect(analyser);
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.6;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+          const updateMeter = () => {
+            analyser.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+            const scaledAverage = average * sensitivity;
+            let currentLengthPercentage = ((scaledAverage / 400) * 100) > 100 ? 100 : ((scaledAverage / 400) * 100);
+
+            if (meterBar.classList.contains("lowSens")) {
+              currentLengthPercentage = currentLengthPercentage > 60 ? 60 : currentLengthPercentage;
+            }
+            meterBar.style.height = `${currentLengthPercentage}%`;
+            if (document.getElementById('wrapper').dataset.win == "true" && currentLengthPercentage == 100) {
+              triggerWin();
+            }
+            requestAnimationFrame(updateMeter);
+          };
+
+          updateMeter();
+        } catch (error) {
+          console.error('Error accessing microphone:', error);
+        }
+      };
+
+      initAudio();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'm') {
+        // document.getElementById('meterBar').classList.toggle('highSens');
+        document.getElementById('meterBar').classList.remove('lowSens');
+        document.getElementById('wrapper').dataset.win = "true";
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'z'){
+        document.getElementById("wrapper").innerHTML = "<video controls autoplay> <source src='playthis.mp4' type='video/mp4'> </video>";
+      }
+    });
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</body>
+
+</html>
